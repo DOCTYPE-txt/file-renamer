@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Advanced Batch File Renamer</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+<style>
+body { font-family: Arial; background:#f4f4f4; padding:30px; }
+.container { max-width:700px; margin:auto; background:white; padding:20px; border-radius:8px; }
+h1 { margin-top:0 }
+input, button, select { padding:10px; margin:5px 0; }
+#fileList { height:200px; overflow:auto; border:1px solid #ddd; padding:10px; background:#fafafa; }
+.ad { margin:20px 0; padding:15px; background:#eee; text-align:center; }
+</style>
+</head>
+<body>
+
+<div class="container">
+<h1>Advanced Batch File Renamer</h1>
+
+<input type="file" id="fileInput" multiple>
+<br>
+
+<input type="text" id="pattern" placeholder="file_###">
+<br>
+
+<label>Position of numbering:</label>
+<select id="numberPosition">
+<option value="suffix">Suffix (at the end)</option>
+<option value="prefix">Prefix (at the beginning)</option>
+<option value="replace">Replace ### in pattern</option>
+</select>
+<br>
+
+<label>Text options:</label>
+<select id="textOption">
+<option value="none">None</option>
+<option value="upper">UPPERCASE</option>
+<option value="lower">lowercase</option>
+<option value="capitalize">Capitalize</option>
+</select>
+<br>
+
+<label>Replace spaces with:</label>
+<input type="text" id="spaceChar" placeholder="_">
+<br>
+
+<button onclick="preview()">Preview</button>
+<button onclick="downloadZip()">Download ZIP</button>
+
+<div id="fileList"></div>
+
+<div class="ad">
+Google AdSense
+</div>
+
+</div>
+
+<script>
+let files = [];
+
+document.getElementById("fileInput").addEventListener("change", e => {
+    files = Array.from(e.target.files);
+    showOriginal();
+});
+
+function showOriginal(){
+    const list = document.getElementById("fileList");
+    list.innerHTML = "";
+    files.forEach(f => { list.innerHTML += f.name + "<br>"; });
+}
+
+function formatNumber(n, digits){
+    return String(n).padStart(digits,"0");
+}
+
+function applyTextOption(name){
+    const opt = document.getElementById("textOption").value;
+    if(opt==="upper") return name.toUpperCase();
+    if(opt==="lower") return name.toLowerCase();
+    if(opt==="capitalize") return name.charAt(0).toUpperCase() + name.slice(1);
+    return name;
+}
+
+function generateName(index, originalName){
+    const pattern = document.getElementById("pattern").value || "";
+    const ext = "." + originalName.split(".").pop();
+    const nameOnly = originalName.replace(/\.[^/.]+$/, ""); // remove extension
+    const hashes = (pattern.match(/#/g) || []).length;
+    const num = formatNumber(index, hashes);
+
+    let newName = "";
+
+    const position = document.getElementById("numberPosition").value;
+    if(position==="prefix") newName = num + "_" + nameOnly;
+    else if(position==="suffix") newName = nameOnly + "_" + num;
+    else newName = pattern.replace("#".repeat(hashes), num);
+
+    // replace spaces
+    const spaceChar = document.getElementById("spaceChar").value || "";
+    newName = newName.replace(/ /g, spaceChar);
+
+    // apply text option
+    newName = applyTextOption(newName);
+
+    return newName + ext;
+}
+
+function preview(){
+    const list = document.getElementById("fileList");
+    list.innerHTML = "";
+    files.forEach((f,i)=>{ list.innerHTML += generateName(i+1, f.name) + "<br>"; });
+}
+
+async function downloadZip(){
+    const zip = new JSZip();
+    for(let i=0;i<files.length;i++){
+        const f = files[i];
+        const newName = generateName(i+1, f.name);
+        const data = await f.arrayBuffer();
+        zip.file(newName, data);
+    }
+    const blob = await zip.generateAsync({type:"blob"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "renamed_files.zip";
+    a.click();
+}
+</script>
+
+</body>
+</html>
